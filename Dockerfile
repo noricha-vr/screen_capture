@@ -19,15 +19,13 @@ RUN dpkg -i google-chrome-stable_current_amd64.deb; apt-get -fy install
 COPY requirements.txt requirements.txt
 RUN python -m pip install --upgrade pip && pip install -r requirements.txt
 
-
+# Install MovieMaker
+RUN git clone https://github.com/noricha-vr/MovieMaker && cd MovieMaker && pip install -e .
 
 # Copy local code to the container image.
 ENV APP_HOME /app
 WORKDIR $APP_HOME
 COPY . .
-
-# Install MovieMaker
-RUN cd MovieMaker && pip install -e .
 
 EXPOSE 8080
 # Run the web service on container startup. Here we use the gunicorn
