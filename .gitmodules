@@ -1,0 +1,3 @@
+[submodule "MovieMaker"]
+	path = MovieMaker
+	url = git@github-noricha.com:noricha-vr/MovieMaker.git
