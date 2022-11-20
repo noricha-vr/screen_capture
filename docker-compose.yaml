@@ -11,6 +11,7 @@ services:
     environment:
       - PORT=8080
       - ALLOW_HOST=0.0.0.0
+      - HOST=0.0.0.0
       - BUCKET_NAME=vrchat
 
 #    networks:

@@ -29,4 +29,4 @@ EXPOSE 8080
 # For environments with multiple CPU cores, increase the number of workers
 # to be equal to the cores available.
 
-CMD exec uvicorn main:app --host $ALLOW_HOST --port 8080
+CMD exec uvicorn main:app --host $HOST --port 8080
