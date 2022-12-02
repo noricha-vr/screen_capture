@@ -29,14 +29,6 @@ RUN CHROME_DRIVER_VERSION=$(curl -sS chromedriver.storage.googleapis.com/LATEST_
 COPY requirements.txt requirements.txt
 RUN python -m pip install --upgrade pip && pip install -r requirements.txt
 
-
-## Install ChromeDriver
-#ENV DRIVER_PATH /usr/local/bin/chromedriver
-#RUN mkdir DRIVER_PATH && cd DRIVER_PATH && python -m webdriver_manager.chrome install
-## Install Chrome
-#RUN wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
-#RUN dpkg -i google-chrome-stable_current_amd64.deb; apt-get -fy install
-
 # Copy local code to the container image.
 ENV APP_HOME /app
 WORKDIR $APP_HOME
@@ -44,8 +36,4 @@ COPY . .
 
 EXPOSE 8080
 
-# Run the web service on container startup. Here we use the gunicorn
-# webserver, with one worker process and 8 threads.
-# For environments with multiple CPU cores, increase the number of workers
-# to be equal to the cores available.
 CMD exec uvicorn main:app --host 0.0.0.0 --port 8080
