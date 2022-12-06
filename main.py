@@ -334,8 +334,7 @@ def stream(movie: UploadFile = Form(), uuid: str = Form()) -> dict:
         command = [
             "ffmpeg",
             "-i", str(movie_path),
-            "-c:v", "h264",
-            "-profile:v", "main",
+            "-c", "copy",
             "-crf", "20",
             "-sc_threshold", "0",
             "-g", "48",
@@ -348,9 +347,8 @@ def stream(movie: UploadFile = Form(), uuid: str = Form()) -> dict:
     else:
         command = [
             "ffmpeg",
-            "-i", str(hls_path),
-            "-c:v", "h264",
-            "-profile:v", "main",
+            "-i", str(movie_path),
+            "-c", "copy",
             "-crf", "20",
             "-sc_threshold", "0",
             "-g", "48",
