@@ -293,18 +293,21 @@ def get_stream(uuid: str):
     :param uuid:
     :return:
     """
-    movie_path = Path(f"movie/{uuid}/video.mp4")
+    hls_path = Path(f"movie/{uuid}/index.m3u8")
+
+    hls_path = Path(f"movie/{uuid}/video.mp4")
     for i in range(20):
-        if movie_path.exists(): break
+        if hls_path.exists(): break
         time.sleep(1)
-    if movie_path.exists() is False:
+    if hls_path.exists() is False:
         raise HTTPException(status_code=404, detail="File not found")
 
-    def gen_movie():
-        with open(movie_path, mode="rb") as file:
+    # Stream HLS format video.
+    def gen_hls():
+        with open(hls_path, mode="rb") as file:
             yield from file
 
-    return StreamingResponse(gen_movie(), media_type="video/mp4")
+    return StreamingResponse(gen_hls(), media_type="application/vnd.apple.mpegurl")
 
 
 @app.post("/api/stream/")
@@ -325,7 +328,44 @@ def stream(movie: UploadFile = Form(), uuid: str = Form()) -> dict:
     mode = "ab" if movie_path.exists() else "wb"
     with open(movie_path, mode) as f:
         f.write(movie.file.read())
-    url = f'/api/stream/{uuid}/'
+    # Encode movie for streaming.
+    hls_path = Path(f"movie/{uuid}/index.m3u8")
+    if mode == "wb":
+        command = [
+            "ffmpeg",
+            "-i", str(movie_path),
+            "-c:v", "h264",
+            "-profile:v", "main",
+            "-crf", "20",
+            "-sc_threshold", "0",
+            "-g", "48",
+            "-keyint_min", "48",
+            "-hls_time", "4",
+            "-hls_playlist_type", "event",
+            "-hls_segment_filename", str(hls_path.parent / "chunk-%03d.ts"),
+            str(hls_path),
+        ]
+    else:
+        command = [
+            "ffmpeg",
+            "-i", str(hls_path),
+            "-c:v", "h264",
+            "-profile:v", "main",
+            "-crf", "20",
+            "-sc_threshold", "0",
+            "-g", "48",
+            "-keyint_min", "48",
+            "-hls_time", "4",
+            "-hls_playlist_type", "event",
+            "-hls_flags", "delete_segments",
+            "-hls_segment_filename", str(hls_path.parent / "chunk-%03d.ts"),
+            str(hls_path),
+        ]
+    command = " ".join(command)
+    logger.info(f"command: {command}")
+    subprocess.run(command, shell=True)
+
+    url = f'/api/stream/{uuid}/index.m3u8'
     return {"message": "ok", 'url': url}
 
 
