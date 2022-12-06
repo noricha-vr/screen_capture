@@ -313,9 +313,13 @@ def get_stream(uuid: str):
 @app.post("/api/stream/")
 def stream(movie: UploadFile = Form(), uuid: str = Form()) -> dict:
     """
-    Uploader movie convert to .m3u8 file. Movie file is saved in 'movie/{session_id}/video.m3u8'.
+    Receive movie chunks. Then append current movie file.
+    Convert the movie file for HLS format.
+    HLS files are saved in 'movie/{session_id}/' directory.
+    .m3u8 file name is 'index.m3u8'.
+    .ts file name is 'chunk-000.ts'.
     :param movie: movie file
-    :param uuid: session id
+    :param uuid: uuid id
     :return: message
     """
 
