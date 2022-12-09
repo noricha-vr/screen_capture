@@ -34,11 +34,12 @@ function createRecorder(stream) {
     const mediaRecorder = new MediaRecorder(stream);
     // upload the recorded data to the server
     let recordedChunks = [];
-    let chunk_size = 10;
+    let chunk_size = 5;
     let max_chunk_size = 50;
     mediaRecorder.ondataavailable = async (e) => {
         if (e.data.size > 0) {
             recordedChunks.push(e.data);
+            console.log(`Recorded chunk size: ${recordedChunks.length}`);
         }
         if (recordedChunks.length > 0 && recordedChunks.length % chunk_size === 0) {
             console.log('uploading...');
@@ -47,9 +48,9 @@ function createRecorder(stream) {
                 showStreamingURL(uuid);
                 is_first = false;
             }
-            if (chunk_size < max_chunk_size) {
-                chunk_size += 20;
-            }
+            // if (chunk_size < max_chunk_size) {
+            //     chunk_size += c;
+            // }
             recordedChunks = [];
         }
     };
