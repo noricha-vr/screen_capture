@@ -30,6 +30,12 @@ async function recordScreen() {
 function createRecorder(stream) {
     let is_first = true;
     const uuid = uuidv4();
+    let stream_url = `${window.location.origin}/movie/${uuid}/index.m3u8`;
+    console.log(`stream_url: ${stream_url}`);
+    let stream_link = document.getElementById('streaming-url');
+    stream_link.textContent = stream_url;
+    stream_link.href = stream_url;
+    preview.src = stream_url;
     // the stream data is stored in this array
     const mediaRecorder = new MediaRecorder(stream);
     // upload the recorded data to the server
