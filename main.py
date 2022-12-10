@@ -33,10 +33,12 @@ BUCKET_NAME = os.environ.get("BUCKET_NAME", None)
 
 ROOT_DIR = Path(os.path.dirname(__file__))
 STATIC_DIR = ROOT_DIR / "static"
+MOVIE_DIR = ROOT_DIR / "movie"
 
 templates = Jinja2Templates(directory=ROOT_DIR / "templates")
 app = FastAPI(debug=DEBUG)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+app.mount("/movie", StaticFiles(directory=MOVIE_DIR), name="movie")
 
 origins = [
     os.environ.get("ALLOW_HOST", None)
@@ -356,22 +358,43 @@ def stream(movie: UploadFile = Form(), uuid: str = Form()) -> dict:
     movie_dir = Path(f"movie/{uuid}")
     movie_dir.mkdir(exist_ok=True, parents=True)
     movie_path = movie_dir / f"video.mp4"
+    index_path = movie_dir / f"index.m3u8"
     # write movie file.
     mode = "ab" if movie_path.exists() else "wb"
     with open(movie_path, mode) as f:
         f.write(movie.file.read())
     # convert to m3u8 file.
-    movie_config = MovieConfig(movie_path, movie_dir / "video.m3u8")
-    movie_config.duration = 0
+    movie_config = MovieConfig(movie_path, index_path)
+    start_at = 0
     duration_path = movie_path.parent / "duration.json"
     if duration_path.exists():
         with open(duration_path) as f:
             for name, duration in json.load(f).items():
-                movie_config.duration += duration
-    to_m3u8(movie_config)
+                start_at += duration
+    temp_index_path = to_m3u8(movie_config, start_at)
     update_duration(duration_path, movie_config.input_image_dir.parent.glob("*.ts"))
+    # movie_dir_url = f"https://storage.googleapis.com/{BUCKET_NAME}/movie/{uuid}/"
+    movie_dir_url = f"https://75c2-202-137-39-24.jp.ngrok.io/movie/{uuid}/"
+    change_segment_url(temp_index_path, index_path, movie_dir_url)
     url = f'/api/stream/{uuid}/'
     return {"message": "ok", 'url': url}
+
+
+def change_segment_url(input_index_path: Path, output_index_path: Path, url: str = "/movie/"):
+    """
+    Change segment URL.
+    :param input_index_path: input index path
+    :param output_index_path: output index path
+    :param url: segment url
+    :return:
+    """
+    with open(input_index_path) as f:
+        lines = f.readlines()
+    with open(output_index_path, "w") as f:
+        for line in lines:
+            if line.find(".ts") != -1:
+                line = f"{url}{line}"
+            f.write(line)
 
 
 def update_duration(duration_path: Path, ts_files: list) -> None:
@@ -404,20 +427,20 @@ def get_duration(video_file: Path) -> float:
     return duration
 
 
-def to_m3u8(movie_config: MovieConfig):
-    output_path = str(movie_config.output_movie_path.parent / "temp.m3u8")
+def to_m3u8(movie_config: MovieConfig, start_at: float) -> Path:
+    output_path = movie_config.output_movie_path.parent / "temp.m3u8"
     command = ['ffmpeg',
-               '-ss', str(movie_config.duration),
+               '-ss', str(start_at),
                '-i', str(movie_config.input_image_dir),
                '-c:v', 'copy',
                '-c:a', 'aac',
                '-b:a', '128k',
                '-f', 'hls',
-               '-hls_time', '6',
-               '-hls_list_size', '5',
+               '-hls_time', '10',
+               '-hls_list_size', '3',
                '-hls_flags', 'append_list',
                '-hls_flags', 'delete_segments',
-               output_path]
+               str(output_path)]
     logger.info(f"command: {' '.join(command)}")
     subprocess.call(command)
     return output_path
