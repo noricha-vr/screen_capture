@@ -8,9 +8,10 @@ from uuid import uuid4
 from datetime import datetime
 from pathlib import Path
 from typing import List
-
+import ffmpeg
 import PIL.Image
 import cv2
+import json
 import uvicorn
 from PIL.Image import Image
 from fastapi import Body, FastAPI, HTTPException, Request, UploadFile, Form, File
@@ -337,6 +338,7 @@ async def get_stream(uuid: str):
                     yield data
         yield data
 
+    media_type = "application/vnd.apple.mpegurl"
     return StreamingResponse(gen_movie(), media_type="video/mp4")
 
 
@@ -358,8 +360,67 @@ def stream(movie: UploadFile = Form(), uuid: str = Form()) -> dict:
     mode = "ab" if movie_path.exists() else "wb"
     with open(movie_path, mode) as f:
         f.write(movie.file.read())
+    # convert to m3u8 file.
+    movie_config = MovieConfig(movie_path, movie_dir / "video.m3u8")
+    movie_config.duration = 0
+    duration_path = movie_path.parent / "duration.json"
+    if duration_path.exists():
+        with open(duration_path) as f:
+            for name, duration in json.load(f).items():
+                movie_config.duration += duration
+    to_m3u8(movie_config)
+    update_duration(duration_path, movie_config.input_image_dir.parent.glob("*.ts"))
     url = f'/api/stream/{uuid}/'
     return {"message": "ok", 'url': url}
+
+
+def update_duration(duration_path: Path, ts_files: list) -> None:
+    """
+    Update duration.json file. Read duration from ts file. And update duration.json file.
+    file name is key, duration is value.
+    :param duration_path:
+    :param ts_files:
+    :return: None
+    """
+    durations = {}
+    if duration_path.exists():
+        with open(duration_path, mode='r') as f:
+            durations = json.load(f)
+    for ts_file in ts_files:
+        if ts_file.name in durations: continue
+        durations[ts_file.name] = get_duration(ts_file)
+    with open(duration_path, mode="w") as f:
+        json.dump(durations, f)
+
+
+def get_duration(video_file: Path) -> float:
+    """
+    Get the duration of a ts file
+    """
+    probe = ffmpeg.probe(video_file)
+    video_stream = next(
+        (stream for stream in probe['streams'] if stream['codec_type'] == 'video'), None)
+    duration = float(video_stream['duration'])
+    return duration
+
+
+def to_m3u8(movie_config: MovieConfig):
+    output_path = str(movie_config.output_movie_path.parent / "temp.m3u8")
+    command = ['ffmpeg',
+               '-ss', str(movie_config.duration),
+               '-i', str(movie_config.input_image_dir),
+               '-c:v', 'copy',
+               '-c:a', 'aac',
+               '-b:a', '128k',
+               '-f', 'hls',
+               '-hls_time', '6',
+               '-hls_list_size', '5',
+               '-hls_flags', 'append_list',
+               '-hls_flags', 'delete_segments',
+               output_path]
+    logger.info(f"command: {' '.join(command)}")
+    subprocess.call(command)
+    return output_path
 
 
 @app.get("/api/delete-movie/")

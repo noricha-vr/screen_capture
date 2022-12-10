@@ -73,6 +73,22 @@
                     スマホの画面共有はできません。
                 </li>
             </ul>
+            <div>
+                <div class="mt-5 mb-3 h5">
+                    【プレビュー】
+                </div>
+                <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+                //自前のサーバーに配置しない場合
+                <video id="preview" controls>
+                    <script>
+                        if (Hls.isSupported()) {
+                            var video = document.getElementById('preview');
+                            var hls = new Hls();
+                            hls.loadSource('./sample.m3u8'); //ここで.m3u8ファイルを指定
+                            hls.attachMedia(video);
+                        }
+                    </script>
+            </div>
 
             <script src="/static/js/baseFunctions.js"></script>
             <script src="/static/js/streaming.js"></script>
